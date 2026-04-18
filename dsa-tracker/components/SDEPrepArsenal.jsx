@@ -990,8 +990,8 @@ export default function SDEPrepArsenal() {
                             <span style={{
                               flex:1,fontSize:13,lineHeight:1.5,
                               color:isDone?"#4ade80":"#cbd5e1",
-                              textDecoration:isDone?"line-through":"none",
-                              textDecorationColor:"rgba(74,222,128,.4)",
+                              textDecorationLine:isDone?"line-through":"none",
+                              textDecorationColor:isDone?"rgba(74,222,128,.4)":"transparent",
                             }}>
                               {item.text}
                             </span>
