@@ -1,0 +1,191 @@
+ARRAY + STRING + SEARCH
+ 1-PAGE INTERVIEW REVISION SHEET
+ ARRAY FUNDAMENTALS
+
+Access: O(1), Traversal: O(n)
+
+In-place = O(1) space
+
+Adjacent comparison → sorted check
+
+Linear scan > sorting (jab possible)
+
+Triggers
+
+Reverse → Two pointers
+
+Sorted check → Adjacent compare
+
+Max/Min → Single pass
+
+ TWO POINTERS
+Opposite Direction
+
+Reverse array/string
+
+Pair sum (sorted)
+
+Container with most water
+
+Same Direction (Slow–Fast)
+
+Remove duplicates
+
+Rearrangement
+
+Golden Rule
+
+Sorted / Ends involved → Two pointers
+
+ SLIDING WINDOW
+Fixed Window
+
+Size constant
+
+Negatives allowed
+
+Max/Min sum problems
+
+Variable Window
+
+Expand → invalid → WHILE shrink
+
+Only positives allowed
+
+Advanced
+
+AtMost(K)
+
+Exactly(K) = AtMost(K) − AtMost(K−1)
+
+ Trap
+
+Variable window + negatives 
+
+ PREFIX SUM + HASHING
+
+Use when
+
+Subarray
+
+Continuous
+
+Negatives allowed
+
+Exact sum / count / longest
+
+Formula
+
+prefix[j] − prefix[i] = K
+
+
+Tricks
+
+prefix repeat → zero sum
+
+remainder same → divisible by K
+
+0s & 1s → replace 0 → −1
+
+XOR → prefixXOR ^ K
+
+ KADANE’S ALGORITHM
+
+Core Thought
+
+Continue OR Restart at every index
+
+current = max(arr[i], current + arr[i])
+max = max(max, current)
+
+
+Variants
+
+All negative array
+
+Buy & Sell Stock (profit array)
+
+Circular subarray
+
+Max product subarray (maxP + minP)
+
+ SORTING (HIGH WEIGHT)
+When to sort?
+
+Relative order doesn’t matter
+
+Observation unlock hota hai
+
+Must-Know
+
+0s,1s,2s → DNF
+
+Kth element → QuickSelect
+
+Inversions → Merge sort logic
+
+Min swaps → Cycle detection
+
+n/k → Moore’s Voting
+
+Relative sort → freq + order
+
+ BINARY SEARCH
+Foundation
+
+Sorted array
+
+First / Last occurrence
+
+Floor / Ceil
+
+Rotated Array
+
+One side always sorted
+
+Decide range
+
+ Binary Search on Answer
+
+Pattern
+
+“Minimum / Maximum possible…”
+
+Steps
+
+Answer range
+
+Feasible(mid)?
+
+True → left, False → right
+
+Examples
+
+Square root
+
+Koko bananas
+
+Allocate pages
+
+ MASTER DECISION MAP
+Array/String
+   ↓
+Subarray?
+   ↓
+Fixed size? → Fixed Window
+   ↓
+All positive? → Variable Window
+   ↓
+Prefix Sum + Hashing
+
+ ONE-LINE INTERVIEW LINES
+
+“Order irrelevant → frequency hashing.”
+
+“Sorted array enables two pointers.”
+
+“Negative numbers break sliding window.”
+
+“Kadane greedily optimizes future sum.”
+
+“Binary search works due to monotonicity.”
