@@ -3,9 +3,9 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 const NAV_LINKS = [
-  { href: "/",     label: "DSA Tracker",     emoji: "⚡", accent: "#6366f1" },
-  { href: "/prep", label: "SDE Prep",         emoji: "🧠", accent: "#a855f7" },
-  { href: "/jobs", label: "Job Tracker",      emoji: "🎯", accent: "#06b6d4" },
+  { href: "/dashboard", label: "DSA Tracker",  emoji: "⚡", accent: "#6366f1" },
+  { href: "/prep",      label: "SDE Prep",      emoji: "🧠", accent: "#a855f7" },
+  { href: "/jobs",      label: "Job Tracker",   emoji: "🎯", accent: "#06b6d4" },
 ]
 
 export default function NavBar() {
