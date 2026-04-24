@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from "react";
+import { createClient } from '@/lib/supabase';
 
 const CATEGORIES = [
   { id: "all",        label: "All",               emoji: "🗂️" },
@@ -566,24 +567,64 @@ export default function DSATracker() {
   const [filter, setFilter]       = useState("all");
   const [search, setSearch]       = useState("");
   const [loaded, setLoaded]       = useState(false);
+  const [user, setUser]           = useState(null);
 
-  /* ── localStorage persistence ── */
+  // ── SUPABASE: Load user + progress on mount ──
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("dsa_v2_solved");
-      if (saved) setSolved(JSON.parse(saved));
-    } catch {}
-    setLoaded(true);
+    const load = async () => {
+      const supabase = createClient();
+
+      // Get current logged-in user
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
+
+      if (!currentUser) {
+        setLoaded(true);
+        return;
+      }
+
+      // Load this user's solved questions from Supabase
+      const { data, error } = await supabase
+        .from('dsa_progress')
+        .select('question_id, solved')
+        .eq('user_id', currentUser.id);
+
+      if (data) {
+        const map = {};
+        data.forEach(row => { map[row.question_id] = row.solved; });
+        setSolved(map);
+      }
+
+      setLoaded(true);
+    };
+    load();
   }, []);
 
-  useEffect(() => {
-    if (!loaded) return;
-    try {
-      localStorage.setItem("dsa_v2_solved", JSON.stringify(solved));
-    } catch {}
-  }, [solved, loaded]);
+  // ── SUPABASE: Toggle a question solved/unsolved ──
+  const toggle = async (qid) => {
+    const newVal = !solved[qid];
 
-  const toggle        = (qid) => setSolved(p => ({ ...p, [qid]: !p[qid] }));
+    // Optimistic UI update — feels instant
+    setSolved(p => ({ ...p, [qid]: newVal }));
+
+    if (!user) return;
+
+    const supabase = createClient();
+    await supabase.from('dsa_progress').upsert({
+      user_id: user.id,
+      question_id: qid,
+      solved: newVal,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,question_id' });
+  };
+
+  // ── SUPABASE: Sign out ──
+  const signOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
+
   const togglePattern = (pid) => setExpanded(p => ({ ...p, [pid]: !p[pid] }));
 
   const allQs   = useMemo(() => PATTERNS.flatMap(p => p.qs), []);
@@ -635,7 +676,48 @@ export default function DSATracker() {
                 DSA Master Tracker
               </h1>
             </div>
-            <div style={{ marginLeft:"auto", textAlign:"right" }}>
+
+            {/* ── User info + Sign out ── */}
+            {user && (
+              <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:12, paddingBottom:4 }}>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontSize:12, color:"#94a3b8" }}>
+                    {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                  </div>
+                  <div style={{ fontSize:10, color:"#475569" }}>{user.email}</div>
+                </div>
+                {user.user_metadata?.avatar_url ? (
+  <img
+    src={user.user_metadata.avatar_url}
+    alt="avatar"
+    referrerPolicy="no-referrer"
+    style={{ width:32, height:32, borderRadius:"50%", border:"2px solid #6366f1" }}
+  />
+) : (
+  <div style={{
+    width:32, height:32, borderRadius:"50%",
+    background:"linear-gradient(135deg,#6366f1,#8b5cf6)",
+    display:"flex", alignItems:"center", justifyContent:"center",
+    color:"#fff", fontSize:13, fontWeight:700, flexShrink:0,
+  }}>
+    {(user.user_metadata?.full_name || user.email || "?")[0].toUpperCase()}
+  </div>
+)}
+                <button onClick={signOut} style={{
+                  padding:"6px 12px", borderRadius:6,
+                  border:"1px solid #334155", background:"transparent",
+                  color:"#64748b", cursor:"pointer", fontSize:11,
+                  fontFamily:"inherit", transition:"all .2s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor="#ef4444"; e.currentTarget.style.color="#ef4444"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor="#334155"; e.currentTarget.style.color="#64748b"; }}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+
+            <div style={{ textAlign:"right" }}>
               <div style={{ fontSize:36, fontWeight:800, color:"#6366f1", lineHeight:1 }}>
                 {solvedQ}<span style={{ fontSize:18, color:"#475569" }}>/{totalQ}</span>
               </div>
@@ -823,7 +905,6 @@ export default function DSATracker() {
                           onMouseEnter={e => { if (!isDone) e.currentTarget.style.background="#1e293b"; }}
                           onMouseLeave={e => { e.currentTarget.style.background = isDone ? "#052e16" : "transparent"; }}>
 
-                            {/* Checkbox — clicking this toggles solved */}
                             <div
                               onClick={() => toggle(qid)}
                               style={{
@@ -840,7 +921,6 @@ export default function DSATracker() {
                               {idx+1}.
                             </span>
 
-                            {/* Title — click opens link, separate from checkbox */}
                             <span style={{ flex:1, display:"flex", alignItems:"center", gap:6, minWidth:0 }}>
                               <span style={{
                                 fontSize:13,
@@ -897,7 +977,7 @@ export default function DSATracker() {
         textAlign:"center", padding:"32px 24px",
         color:"#334155", fontSize:11, borderTop:"1px solid #1e293b",
       }}>
-        {totalQ} questions · 34 patterns · Striver A2Z aligned · Progress auto-saved · LC = LeetCode · G = GFG
+        {totalQ} questions · 34 patterns · Striver A2Z aligned · Progress synced to cloud · LC = LeetCode · G = GFG
       </div>
     </div>
   );
