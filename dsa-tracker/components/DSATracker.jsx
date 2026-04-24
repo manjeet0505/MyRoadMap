@@ -569,56 +569,35 @@ export default function DSATracker() {
   const [loaded, setLoaded]       = useState(false);
   const [user, setUser]           = useState(null);
 
-  // ── SUPABASE: Load user + progress on mount ──
   useEffect(() => {
     const load = async () => {
       const supabase = createClient();
-
-      // Get current logged-in user
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser);
-
-      if (!currentUser) {
-        setLoaded(true);
-        return;
-      }
-
-      // Load this user's solved questions from Supabase
-      const { data, error } = await supabase
-        .from('dsa_progress')
-        .select('question_id, solved')
-        .eq('user_id', currentUser.id);
-
+      if (!currentUser) { setLoaded(true); return; }
+      const { data } = await supabase
+        .from('dsa_progress').select('question_id, solved').eq('user_id', currentUser.id);
       if (data) {
         const map = {};
         data.forEach(row => { map[row.question_id] = row.solved; });
         setSolved(map);
       }
-
       setLoaded(true);
     };
     load();
   }, []);
 
-  // ── SUPABASE: Toggle a question solved/unsolved ──
   const toggle = async (qid) => {
     const newVal = !solved[qid];
-
-    // Optimistic UI update — feels instant
     setSolved(p => ({ ...p, [qid]: newVal }));
-
     if (!user) return;
-
     const supabase = createClient();
     await supabase.from('dsa_progress').upsert({
-      user_id: user.id,
-      question_id: qid,
-      solved: newVal,
+      user_id: user.id, question_id: qid, solved: newVal,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,question_id' });
   };
 
-  // ── SUPABASE: Sign out ──
   const signOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -649,197 +628,328 @@ export default function DSATracker() {
 
   if (!loaded) return (
     <div style={{
-      display:"flex", alignItems:"center", justifyContent:"center",
-      height:"100vh", background:"#0a0a0f", color:"#6366f1",
-      fontFamily:"monospace", fontSize:18
-    }}>Loading your progress…</div>
+      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+      height:"100vh", background:"#020408", gap:16,
+    }}>
+      <div style={{
+        width:40, height:40, borderRadius:"50%",
+        border:"3px solid rgba(99,102,241,0.2)",
+        borderTopColor:"#6366f1",
+        animation:"spin 0.8s linear infinite",
+      }}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ color:"#475569", fontFamily:"monospace", fontSize:13, letterSpacing:2 }}>
+        LOADING PROGRESS…
+      </div>
+    </div>
   );
 
   return (
     <div style={{
-      minHeight:"100vh", background:"#0a0a0f",
-      fontFamily:"'IBM Plex Mono', 'Fira Code', monospace",
+      minHeight:"100vh",
+      background:"#020408",
+      fontFamily:"'DM Sans', 'IBM Plex Mono', monospace",
       color:"#e2e8f0",
     }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');
+        
+        .dsa-orb { position:fixed; border-radius:50%; filter:blur(100px); opacity:0.15; pointer-events:none; }
+        .dsa-orb-1 { width:600px; height:600px; background:#6366f1; top:-200px; left:-100px; }
+        .dsa-orb-2 { width:400px; height:400px; background:#a855f7; bottom:-100px; right:-100px; }
+
+        .pattern-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .pattern-card:hover { transform: translateY(-2px); }
+
+        .cat-btn { transition: all 0.2s ease; }
+        .cat-btn:hover { color: #e2e8f0 !important; }
+
+        .q-row { transition: background 0.15s ease; }
+
+        .filter-btn { transition: all 0.2s ease; }
+        .filter-btn:hover { border-color: rgba(99,102,241,0.5) !important; color: #c7d2fe !important; }
+
+        .signout-btn { transition: all 0.2s ease; }
+        .signout-btn:hover { border-color: #ef4444 !important; color: #ef4444 !important; background: rgba(239,68,68,0.08) !important; }
+
+        .checkbox { transition: all 0.2s ease; cursor: pointer; }
+        .checkbox:hover { transform: scale(1.15); }
+      `}</style>
+
+      {/* Background orbs */}
+      <div className="dsa-orb dsa-orb-1" />
+      <div className="dsa-orb dsa-orb-2" />
+
       {/* ── HEADER ── */}
       <div style={{
-        background:"linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)",
-        borderBottom:"1px solid #1e293b", padding:"28px 24px 0",
+        background:"linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 50%, rgba(6,182,212,0.06) 100%)",
+        borderBottom:"1px solid rgba(255,255,255,0.06)",
+        padding:"32px 32px 0",
+        position:"relative", overflow:"hidden",
+        backdropFilter:"blur(10px)",
       }}>
-        <div style={{ maxWidth:1100, margin:"0 auto" }}>
-          <div style={{ display:"flex", alignItems:"flex-end", gap:16, flexWrap:"wrap" }}>
+        {/* Subtle grid */}
+        <div style={{
+          position:"absolute", inset:0, pointerEvents:"none",
+          backgroundImage:"linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px)",
+          backgroundSize:"40px 40px",
+        }}/>
+
+        <div style={{ maxWidth:1200, margin:"0 auto", position:"relative" }}>
+
+          {/* Top row */}
+          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:16, marginBottom:24 }}>
+
+            {/* Title block */}
             <div>
-              <div style={{ fontSize:11, color:"#6366f1", letterSpacing:4, textTransform:"uppercase", marginBottom:4 }}>
-                Striver A2Z × 34 Patterns
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                <div style={{ width:6, height:6, borderRadius:"50%", background:"#6366f1", boxShadow:"0 0 10px #6366f1" }}/>
+                <span style={{ fontSize:10, color:"#6366f1", letterSpacing:4, textTransform:"uppercase", fontFamily:"monospace" }}>
+                  Striver A2Z × 34 Patterns
+                </span>
               </div>
-              <h1 style={{ margin:0, fontSize:28, fontWeight:700, color:"#f1f5f9", lineHeight:1.1 }}>
+              <h1 style={{
+                margin:0, fontFamily:"'Syne', sans-serif",
+                fontSize:"clamp(28px, 4vw, 42px)", fontWeight:800,
+                background:"linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%)",
+                WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+                backgroundClip:"text", lineHeight:1.1,
+              }}>
                 DSA Master Tracker
               </h1>
             </div>
 
-            {/* ── User info + Sign out ── */}
-            {user && (
-              <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:12, paddingBottom:4 }}>
-                <div style={{ textAlign:"right" }}>
-                  <div style={{ fontSize:12, color:"#94a3b8" }}>
-                    {user.user_metadata?.full_name || user.email?.split('@')[0]}
-                  </div>
-                  <div style={{ fontSize:10, color:"#475569" }}>{user.email}</div>
-                </div>
-                {user.user_metadata?.avatar_url ? (
-  <img
-    src={user.user_metadata.avatar_url}
-    alt="avatar"
-    referrerPolicy="no-referrer"
-    style={{ width:32, height:32, borderRadius:"50%", border:"2px solid #6366f1" }}
-  />
-) : (
-  <div style={{
-    width:32, height:32, borderRadius:"50%",
-    background:"linear-gradient(135deg,#6366f1,#8b5cf6)",
-    display:"flex", alignItems:"center", justifyContent:"center",
-    color:"#fff", fontSize:13, fontWeight:700, flexShrink:0,
-  }}>
-    {(user.user_metadata?.full_name || user.email || "?")[0].toUpperCase()}
-  </div>
-)}
-                <button onClick={signOut} style={{
-                  padding:"6px 12px", borderRadius:6,
-                  border:"1px solid #334155", background:"transparent",
-                  color:"#64748b", cursor:"pointer", fontSize:11,
-                  fontFamily:"inherit", transition:"all .2s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor="#ef4444"; e.currentTarget.style.color="#ef4444"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor="#334155"; e.currentTarget.style.color="#64748b"; }}
-                >
-                  Sign out
-                </button>
-              </div>
-            )}
+            {/* Right side: user + stats */}
+            <div style={{ display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
 
-            <div style={{ textAlign:"right" }}>
-              <div style={{ fontSize:36, fontWeight:800, color:"#6366f1", lineHeight:1 }}>
-                {solvedQ}<span style={{ fontSize:18, color:"#475569" }}>/{totalQ}</span>
+              {/* User card */}
+              {user && (
+                <div style={{
+                  display:"flex", alignItems:"center", gap:12,
+                  padding:"10px 16px",
+                  background:"rgba(255,255,255,0.04)",
+                  backdropFilter:"blur(20px)",
+                  border:"1px solid rgba(255,255,255,0.08)",
+                  borderRadius:14,
+                }}>
+                  {user.user_metadata?.avatar_url ? (
+                    <img src={user.user_metadata.avatar_url} alt="avatar"
+                      referrerPolicy="no-referrer"
+                      style={{ width:34, height:34, borderRadius:"50%", border:"2px solid rgba(99,102,241,0.5)" }}
+                    />
+                  ) : (
+                    <div style={{
+                      width:34, height:34, borderRadius:"50%",
+                      background:"linear-gradient(135deg,#6366f1,#a855f7)",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      color:"#fff", fontSize:13, fontWeight:700,
+                    }}>
+                      {(user.user_metadata?.full_name || user.email || "?")[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ fontSize:13, color:"#e2e8f0", fontWeight:500 }}>
+                      {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                    </div>
+                    <div style={{ fontSize:10, color:"#475569" }}>{user.email}</div>
+                  </div>
+                  <button onClick={signOut} className="signout-btn" style={{
+                    padding:"6px 12px", borderRadius:8,
+                    border:"1px solid rgba(255,255,255,0.08)",
+                    background:"transparent", color:"#475569",
+                    cursor:"pointer", fontSize:11, fontFamily:"inherit",
+                    marginLeft:4,
+                  }}>
+                    Sign out
+                  </button>
+                </div>
+              )}
+
+              {/* Solved counter */}
+              <div style={{
+                padding:"10px 20px",
+                background:"rgba(99,102,241,0.1)",
+                border:"1px solid rgba(99,102,241,0.2)",
+                borderRadius:14, textAlign:"center",
+              }}>
+                <div style={{
+                  fontFamily:"'Syne', sans-serif", fontSize:32, fontWeight:800, lineHeight:1,
+                  background:"linear-gradient(135deg,#6366f1,#a855f7)",
+                  WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text",
+                }}>
+                  {solvedQ}<span style={{ fontSize:16, WebkitTextFillColor:"#334155" }}>/{totalQ}</span>
+                </div>
+                <div style={{ fontSize:10, color:"#475569", marginTop:4, letterSpacing:1, textTransform:"uppercase" }}>
+                  solved
+                </div>
               </div>
-              <div style={{ fontSize:12, color:"#64748b" }}>questions solved</div>
             </div>
           </div>
 
-          <div style={{ marginTop:20 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#64748b", marginBottom:6 }}>
-              <span>Overall Progress</span>
-              <span style={{ color: pct===100?"#22c55e":"#6366f1" }}>{pct}%</span>
+          {/* Progress bar */}
+          <div style={{ marginBottom:20 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <span style={{ fontSize:11, color:"#475569", letterSpacing:2, textTransform:"uppercase" }}>Overall Progress</span>
+              <span style={{
+                fontSize:12, fontWeight:700,
+                color: pct===100 ? "#22c55e" : "#6366f1",
+                fontFamily:"monospace",
+              }}>{pct}%</span>
             </div>
-            <div style={{ height:8, background:"#1e293b", borderRadius:99, overflow:"hidden" }}>
+            <div style={{ height:6, background:"rgba(255,255,255,0.06)", borderRadius:99, overflow:"hidden" }}>
               <div style={{
                 height:"100%", borderRadius:99,
-                background:"linear-gradient(90deg,#6366f1,#8b5cf6)",
-                width:`${pct}%`, transition:"width .4s ease",
+                background:"linear-gradient(90deg, #6366f1, #a855f7, #06b6d4)",
+                width:`${pct}%`, transition:"width 0.6s ease",
+                boxShadow: pct > 0 ? "0 0 12px rgba(99,102,241,0.6)" : "none",
               }}/>
             </div>
           </div>
 
-          <div style={{ display:"flex", gap:20, marginTop:16, flexWrap:"wrap" }}>
+          {/* Difficulty stats */}
+          <div style={{ display:"flex", gap:24, marginBottom:20, flexWrap:"wrap" }}>
             {["E","M","H"].map(d => {
               const tot  = allQs.filter(q=>q[2]===d).length;
               const done = allQs.filter(q=>q[2]===d && solved[q[0]]).length;
+              const dpct = tot ? Math.round((done/tot)*100) : 0;
               return (
-                <div key={d} style={{ display:"flex", alignItems:"center", gap:8, fontSize:12 }}>
-                  <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:DIFF_COLOR[d] }}/>
-                  <span style={{ color:"#94a3b8" }}>{DIFF_LABEL[d]}</span>
-                  <span style={{ color:DIFF_COLOR[d], fontWeight:700 }}>{done}/{tot}</span>
+                <div key={d} style={{
+                  display:"flex", alignItems:"center", gap:10,
+                  padding:"8px 16px",
+                  background:"rgba(255,255,255,0.03)",
+                  border:`1px solid ${DIFF_COLOR[d]}22`,
+                  borderRadius:10,
+                }}>
+                  <div style={{ width:8, height:8, borderRadius:"50%", background:DIFF_COLOR[d], boxShadow:`0 0 8px ${DIFF_COLOR[d]}` }}/>
+                  <span style={{ fontSize:12, color:"#64748b" }}>{DIFF_LABEL[d]}</span>
+                  <span style={{ fontSize:13, color:DIFF_COLOR[d], fontWeight:700, fontFamily:"monospace" }}>{done}/{tot}</span>
+                  <span style={{ fontSize:10, color:"#334155" }}>({dpct}%)</span>
                 </div>
               );
             })}
           </div>
 
-          <div style={{ display:"flex", gap:4, marginTop:20, overflowX:"auto", paddingBottom:0, scrollbarWidth:"none" }}>
-            {CATEGORIES.map(c => (
-              <button key={c.id} onClick={() => setActiveCat(c.id)} style={{
-                flex:"0 0 auto", padding:"8px 14px",
-                borderRadius:"8px 8px 0 0",
-                border:"none", cursor:"pointer",
-                fontSize:12, fontFamily:"inherit",
-                background: activeCat===c.id ? "#0a0a0f" : "transparent",
-                color: activeCat===c.id ? "#6366f1" : "#64748b",
-                borderBottom: activeCat===c.id ? "2px solid #6366f1" : "2px solid transparent",
-                transition:"all .2s", whiteSpace:"nowrap",
-              }}>
-                {c.emoji} {c.label}
-              </button>
-            ))}
+          {/* Category tabs */}
+          <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:0, scrollbarWidth:"none" }}>
+            {CATEGORIES.map(c => {
+              const isActive = activeCat === c.id;
+              const accent = CAT_COLORS[c.id] || "#6366f1";
+              return (
+                <button key={c.id} onClick={() => setActiveCat(c.id)} className="cat-btn" style={{
+                  flex:"0 0 auto", padding:"9px 16px",
+                  borderRadius:"10px 10px 0 0",
+                  border:"none", cursor:"pointer",
+                  fontSize:12, fontFamily:"inherit",
+                  background: isActive ? "rgba(255,255,255,0.06)" : "transparent",
+                  color: isActive ? (CAT_COLORS[c.id] || "#6366f1") : "#475569",
+                  borderBottom: isActive ? `2px solid ${accent}` : "2px solid transparent",
+                  borderTop: isActive ? `1px solid rgba(255,255,255,0.08)` : "1px solid transparent",
+                  borderLeft: isActive ? `1px solid rgba(255,255,255,0.08)` : "1px solid transparent",
+                  borderRight: isActive ? `1px solid rgba(255,255,255,0.08)` : "1px solid transparent",
+                  transition:"all .2s", whiteSpace:"nowrap",
+                  boxShadow: isActive ? `0 -4px 12px ${accent}22` : "none",
+                }}>
+                  {c.emoji} {c.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
       {/* ── CONTROLS ── */}
       <div style={{
-        background:"#0d1117", borderBottom:"1px solid #1e293b",
-        padding:"12px 24px", position:"sticky", top:0, zIndex:50,
+        background:"rgba(2,4,8,0.8)",
+        backdropFilter:"blur(20px)",
+        borderBottom:"1px solid rgba(255,255,255,0.05)",
+        padding:"14px 32px",
+        position:"sticky", top:56, zIndex:50,
       }}>
-        <div style={{ maxWidth:1100, margin:"0 auto", display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
-          <input
-            value={search} onChange={e=>setSearch(e.target.value)}
-            placeholder="🔍  Search questions…"
-            style={{
-              flex:"1 1 220px", padding:"8px 12px",
-              background:"#1e293b", border:"1px solid #334155",
-              borderRadius:8, color:"#e2e8f0", fontSize:13,
-              fontFamily:"inherit", outline:"none",
-            }}
-          />
-          {["all","todo","done"].map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{
-              padding:"7px 16px", borderRadius:8,
-              border:`1px solid ${filter===f?"#6366f1":"#334155"}`,
-              background: filter===f?"#1e1b4b":"transparent",
-              color: filter===f?"#818cf8":"#64748b",
-              cursor:"pointer", fontSize:12, fontFamily:"inherit",
-              transition:"all .2s",
-            }}>
-              {f==="all"?"All":f==="todo"?"To Do":"Done"}
-            </button>
-          ))}
+        <div style={{ maxWidth:1200, margin:"0 auto", display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+          <div style={{ position:"relative", flex:"1 1 240px" }}>
+            <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#334155", fontSize:14 }}>🔍</span>
+            <input
+              value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Search questions…"
+              style={{
+                width:"100%", padding:"9px 12px 9px 36px",
+                background:"rgba(255,255,255,0.04)",
+                border:"1px solid rgba(255,255,255,0.08)",
+                borderRadius:10, color:"#e2e8f0", fontSize:13,
+                fontFamily:"inherit", outline:"none",
+                transition:"border-color 0.2s",
+              }}
+              onFocus={e => e.target.style.borderColor="rgba(99,102,241,0.5)"}
+              onBlur={e => e.target.style.borderColor="rgba(255,255,255,0.08)"}
+            />
+          </div>
+
+          <div style={{ display:"flex", gap:6 }}>
+            {["all","todo","done"].map(f => (
+              <button key={f} onClick={() => setFilter(f)} className="filter-btn" style={{
+                padding:"8px 18px", borderRadius:8,
+                border:`1px solid ${filter===f ? "#6366f1" : "rgba(255,255,255,0.08)"}`,
+                background: filter===f ? "rgba(99,102,241,0.15)" : "transparent",
+                color: filter===f ? "#818cf8" : "#475569",
+                cursor:"pointer", fontSize:12, fontFamily:"inherit",
+                boxShadow: filter===f ? "0 0 16px rgba(99,102,241,0.2)" : "none",
+              }}>
+                {f==="all"?"All":f==="todo"?"To Do":"Done"}
+              </button>
+            ))}
+          </div>
+
           <button onClick={() => {
             const ids = visiblePatterns.map(p=>p.id);
             const allOpen = ids.every(id=>expanded[id]);
             const next = {}; ids.forEach(id => { next[id]=!allOpen; });
             setExpanded(p => ({ ...p, ...next }));
           }} style={{
-            padding:"7px 16px", borderRadius:8,
-            border:"1px solid #334155", background:"transparent",
-            color:"#64748b", cursor:"pointer", fontSize:12, fontFamily:"inherit",
+            padding:"8px 18px", borderRadius:8,
+            border:"1px solid rgba(255,255,255,0.08)",
+            background:"rgba(255,255,255,0.03)",
+            color:"#475569", cursor:"pointer", fontSize:12, fontFamily:"inherit",
+            transition:"all 0.2s",
           }}>
             {visiblePatterns.every(p=>expanded[p.id]) ? "⊟ Collapse All" : "⊞ Expand All"}
           </button>
-          <span style={{ marginLeft:"auto", fontSize:12, color:"#475569" }}>
+
+          <span style={{ marginLeft:"auto", fontSize:11, color:"#334155", fontFamily:"monospace" }}>
             {visiblePatterns.length} patterns · {visiblePatterns.reduce((a,p)=>a+p.qs.length,0)} questions
           </span>
         </div>
       </div>
 
       {/* ── PATTERN CARDS ── */}
-      <div style={{ maxWidth:1100, margin:"0 auto", padding:"24px" }}>
+      <div style={{ maxWidth:1200, margin:"0 auto", padding:"28px 32px" }}>
         {visiblePatterns.length === 0 ? (
-          <div style={{ textAlign:"center", color:"#475569", padding:60, fontSize:14 }}>
+          <div style={{
+            textAlign:"center", padding:80,
+            color:"#334155", fontSize:14,
+          }}>
+            <div style={{ fontSize:40, marginBottom:16 }}>🔍</div>
             No questions match your filters.
           </div>
         ) : (
-          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
             {visiblePatterns.map(p => {
-              const done  = patternSolved(p);
-              const total = p.qs.length;
-              const ppct  = total ? Math.round((done/total)*100) : 0;
+              const done   = patternSolved(p);
+              const total  = p.qs.length;
+              const ppct   = total ? Math.round((done/total)*100) : 0;
               const accent = CAT_COLORS[p.cat] || "#6366f1";
-              const open  = !!expanded[p.id];
+              const open   = !!expanded[p.id];
 
               return (
-                <div key={p.id} style={{
-                  background:"#111827",
-                  border:`1px solid ${open ? accent+"44" : "#1e293b"}`,
-                  borderRadius:12, overflow:"hidden",
-                  transition:"border-color .2s",
+                <div key={p.id} className="pattern-card" style={{
+                  background:"rgba(255,255,255,0.02)",
+                  border:`1px solid ${open ? accent+"33" : "rgba(255,255,255,0.06)"}`,
+                  borderLeft:`3px solid ${open ? accent : "rgba(255,255,255,0.06)"}`,
+                  borderRadius:14, overflow:"hidden",
+                  boxShadow: open ? `0 4px 24px ${accent}15` : "none",
+                  backdropFilter:"blur(10px)",
                 }}>
+
+                  {/* Pattern header */}
                   <button onClick={() => togglePattern(p.id)} style={{
                     width:"100%", padding:"16px 20px",
                     display:"flex", alignItems:"center", gap:14,
@@ -847,107 +957,118 @@ export default function DSATracker() {
                     textAlign:"left", color:"inherit",
                   }}>
                     <span style={{
-                      flex:"0 0 36px", height:36, borderRadius:8,
-                      background: accent+"22", border:`1px solid ${accent}44`,
-                      color: accent,
+                      flex:"0 0 38px", height:38, borderRadius:10,
+                      background:`${accent}18`,
+                      border:`1px solid ${accent}33`,
+                      color:accent,
                       display:"flex", alignItems:"center", justifyContent:"center",
-                      fontSize:13, fontWeight:700,
+                      fontSize:13, fontWeight:800, fontFamily:"'Syne', sans-serif",
+                      boxShadow:`0 0 12px ${accent}22`,
                     }}>
                       {p.id}
                     </span>
+
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:14, fontWeight:600, color:"#e2e8f0", marginBottom:6 }}>
+                      <div style={{
+                        fontSize:14, fontWeight:600,
+                        color: open ? "#f1f5f9" : "#cbd5e1",
+                        marginBottom:6, fontFamily:"'DM Sans', sans-serif",
+                      }}>
                         Pattern {p.id} — {p.name}
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <div style={{ flex:1, height:4, background:"#1e293b", borderRadius:99, maxWidth:200 }}>
+                        <div style={{ flex:1, height:3, background:"rgba(255,255,255,0.05)", borderRadius:99, maxWidth:180 }}>
                           <div style={{
                             height:"100%", borderRadius:99,
-                            background: ppct===100?"#22c55e":accent,
-                            width:`${ppct}%`, transition:"width .3s",
+                            background: ppct===100 ? "#22c55e" : `linear-gradient(90deg, ${accent}, ${accent}99)`,
+                            width:`${ppct}%`, transition:"width 0.4s ease",
+                            boxShadow: ppct > 0 ? `0 0 8px ${accent}66` : "none",
                           }}/>
                         </div>
-                        <span style={{ fontSize:11, color: ppct===100?"#22c55e":"#64748b", flexShrink:0 }}>
-                          {done}/{total} {ppct===100?"✓":""}
+                        <span style={{
+                          fontSize:11, fontFamily:"monospace",
+                          color: ppct===100 ? "#22c55e" : "#475569",
+                        }}>
+                          {done}/{total}{ppct===100 ? " ✓" : ""}
                         </span>
                       </div>
                     </div>
+
                     <div style={{ display:"flex", gap:4, flexShrink:0 }}>
                       {["E","M","H"].map(d => {
                         const c = p.qs.filter(q=>q[2]===d).length;
                         return c > 0 ? (
                           <span key={d} style={{
-                            fontSize:10, padding:"2px 6px", borderRadius:99,
-                            background: DIFF_COLOR[d]+"22",
-                            color: DIFF_COLOR[d], fontWeight:700,
+                            fontSize:10, padding:"3px 7px", borderRadius:99,
+                            background:`${DIFF_COLOR[d]}18`,
+                            border:`1px solid ${DIFF_COLOR[d]}33`,
+                            color:DIFF_COLOR[d], fontWeight:700, fontFamily:"monospace",
                           }}>{c}{d}</span>
                         ) : null;
                       })}
                     </div>
-                    <span style={{ color:"#475569", fontSize:18, flexShrink:0 }}>
-                      {open ? "▾" : "▸"}
-                    </span>
+
+                    <span style={{
+                      color: open ? accent : "#334155",
+                      fontSize:16, flexShrink:0,
+                      transition:"transform 0.2s, color 0.2s",
+                      transform: open ? "rotate(90deg)" : "rotate(0deg)",
+                      display:"inline-block",
+                    }}>▸</span>
                   </button>
 
+                  {/* Questions list */}
                   {open && (
-                    <div style={{ borderTop:`1px solid #1e293b` }}>
+                    <div style={{ borderTop:`1px solid rgba(255,255,255,0.04)` }}>
                       {p.qs.map((q, idx) => {
                         const [qid, title, diff, url] = q;
                         const isDone = !!solved[qid];
                         return (
-                          <div key={qid} style={{
+                          <div key={qid} className="q-row" style={{
                             display:"flex", alignItems:"center", gap:12,
-                            padding:"11px 20px 11px 24px",
-                            borderBottom: idx < p.qs.length-1 ? "1px solid #0f172a" : "none",
-                            background: isDone ? "#052e16" : "transparent",
-                            transition:"background .15s",
+                            padding:"11px 20px 11px 26px",
+                            borderBottom: idx < p.qs.length-1 ? "1px solid rgba(255,255,255,0.03)" : "none",
+                            background: isDone ? "rgba(34,197,94,0.06)" : "transparent",
                           }}
-                          onMouseEnter={e => { if (!isDone) e.currentTarget.style.background="#1e293b"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = isDone ? "#052e16" : "transparent"; }}>
+                          onMouseEnter={e => { if(!isDone) e.currentTarget.style.background="rgba(255,255,255,0.03)"; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = isDone ? "rgba(34,197,94,0.06)" : "transparent"; }}>
 
-                            <div
-                              onClick={() => toggle(qid)}
-                              style={{
-                                width:18, height:18, borderRadius:4, flexShrink:0,
-                                border: isDone ? "none" : "2px solid #334155",
-                                background: isDone ? accent : "transparent",
-                                display:"flex", alignItems:"center", justifyContent:"center",
-                                transition:"all .2s", cursor:"pointer",
-                              }}>
-                              {isDone && <span style={{ color:"#fff", fontSize:11, lineHeight:1 }}>✓</span>}
+                            {/* Checkbox */}
+                            <div className="checkbox" onClick={() => toggle(qid)} style={{
+                              width:18, height:18, borderRadius:5, flexShrink:0,
+                              border: isDone ? "none" : "2px solid rgba(255,255,255,0.12)",
+                              background: isDone ? accent : "transparent",
+                              display:"flex", alignItems:"center", justifyContent:"center",
+                              boxShadow: isDone ? `0 0 10px ${accent}66` : "none",
+                            }}>
+                              {isDone && <span style={{ color:"#fff", fontSize:10, lineHeight:1 }}>✓</span>}
                             </div>
 
-                            <span style={{ fontSize:11, color:"#334155", flexShrink:0, minWidth:20 }}>
+                            <span style={{ fontSize:11, color:"#1e293b", flexShrink:0, minWidth:22, fontFamily:"monospace" }}>
                               {idx+1}.
                             </span>
 
-                            <span style={{ flex:1, display:"flex", alignItems:"center", gap:6, minWidth:0 }}>
+                            <span style={{ flex:1, display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
                               <span style={{
                                 fontSize:13,
-                                color: isDone ? "#4ade80" : "#cbd5e1",
-                                textDecorationLine: isDone ? "line-through" : "none",
+                                color: isDone ? "#4ade80" : "#94a3b8",
+                                textDecoration: isDone ? "line-through" : "none",
                                 textDecorationColor: isDone ? "#166534" : "transparent",
-                                cursor: "default",
                               }}>
                                 {title}
                               </span>
-                              <a
-                                href={url}
-                                target="_blank"
-                                rel="noreferrer"
+                              <a href={url} target="_blank" rel="noreferrer"
                                 onClick={e => e.stopPropagation()}
-                                title={url.includes("geeksforgeeks") ? "Open on GFG" : "Open on LeetCode"}
                                 style={{
                                   display:"inline-flex", alignItems:"center", justifyContent:"center",
-                                  flexShrink:0,
-                                  width:18, height:18, borderRadius:4,
-                                  background: url.includes("geeksforgeeks") ? "#16a34a22" : "#6366f122",
-                                  border: `1px solid ${url.includes("geeksforgeeks") ? "#16a34a44" : "#6366f144"}`,
+                                  flexShrink:0, width:20, height:20, borderRadius:5,
+                                  background: url.includes("geeksforgeeks") ? "rgba(22,163,74,0.12)" : "rgba(99,102,241,0.12)",
+                                  border:`1px solid ${url.includes("geeksforgeeks") ? "rgba(22,163,74,0.25)" : "rgba(99,102,241,0.25)"}`,
                                   color: url.includes("geeksforgeeks") ? "#4ade80" : "#818cf8",
                                   fontSize:9, fontWeight:700, textDecoration:"none",
                                   transition:"all .15s",
                                 }}
-                                onMouseEnter={e => { e.currentTarget.style.opacity="0.75"; }}
+                                onMouseEnter={e => { e.currentTarget.style.opacity="0.7"; }}
                                 onMouseLeave={e => { e.currentTarget.style.opacity="1"; }}
                               >
                                 {url.includes("geeksforgeeks") ? "G" : "LC"}
@@ -955,9 +1076,10 @@ export default function DSATracker() {
                             </span>
 
                             <span style={{
-                              fontSize:11, padding:"2px 8px", borderRadius:99, flexShrink:0,
-                              background: DIFF_COLOR[diff]+"22",
-                              color: DIFF_COLOR[diff], fontWeight:600,
+                              fontSize:11, padding:"3px 10px", borderRadius:99, flexShrink:0,
+                              background:`${DIFF_COLOR[diff]}12`,
+                              border:`1px solid ${DIFF_COLOR[diff]}25`,
+                              color:DIFF_COLOR[diff], fontWeight:600,
                             }}>
                               {DIFF_LABEL[diff]}
                             </span>
@@ -975,9 +1097,11 @@ export default function DSATracker() {
 
       <div style={{
         textAlign:"center", padding:"32px 24px",
-        color:"#334155", fontSize:11, borderTop:"1px solid #1e293b",
+        color:"#1e293b", fontSize:11, letterSpacing:2,
+        borderTop:"1px solid rgba(255,255,255,0.03)",
+        fontFamily:"monospace",
       }}>
-        {totalQ} questions · 34 patterns · Striver A2Z aligned · Progress synced to cloud · LC = LeetCode · G = GFG
+        {totalQ} QUESTIONS · 34 PATTERNS · STRIVER A2Z · LC = LEETCODE · G = GFG
       </div>
     </div>
   );
