@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect, useMemo } from "react";
-import { createClient } from '@/lib/supabase';
 
 const CATEGORIES = [
   { id: "all",        label: "All",               emoji: "🗂️" },
@@ -560,6 +559,8 @@ const CAT_COLORS = {
   heaps:"#f97316", dp:"#3b82f6", others:"#a855f7",
 };
 
+const STORAGE_KEY = "dsa_progress";
+
 export default function DSATracker() {
   const [solved, setSolved]       = useState({});
   const [activeCat, setActiveCat] = useState("all");
@@ -567,41 +568,27 @@ export default function DSATracker() {
   const [filter, setFilter]       = useState("all");
   const [search, setSearch]       = useState("");
   const [loaded, setLoaded]       = useState(false);
-  const [user, setUser]           = useState(null);
 
   useEffect(() => {
-    const load = async () => {
-      const supabase = createClient();
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      setUser(currentUser);
-      if (!currentUser) { setLoaded(true); return; }
-      const { data } = await supabase
-        .from('dsa_progress').select('question_id, solved').eq('user_id', currentUser.id);
-      if (data) {
-        const map = {};
-        data.forEach(row => { map[row.question_id] = row.solved; });
-        setSolved(map);
-      }
-      setLoaded(true);
-    };
-    load();
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) setSolved(JSON.parse(saved));
+    } catch (e) {
+      console.error('Failed to load DSA progress from localStorage:', e);
+    }
+    setLoaded(true);
   }, []);
 
-  const toggle = async (qid) => {
-    const newVal = !solved[qid];
-    setSolved(p => ({ ...p, [qid]: newVal }));
-    if (!user) return;
-    const supabase = createClient();
-    await supabase.from('dsa_progress').upsert({
-      user_id: user.id, question_id: qid, solved: newVal,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,question_id' });
-  };
-
-  const signOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = '/login';
+  const toggle = (qid) => {
+    setSolved(prev => {
+      const updated = { ...prev, [qid]: !prev[qid] };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to save DSA progress:', e);
+      }
+      return updated;
+    });
   };
 
   const togglePattern = (pid) => setExpanded(p => ({ ...p, [pid]: !p[pid] }));
@@ -669,9 +656,6 @@ export default function DSATracker() {
         .filter-btn { transition: all 0.2s ease; }
         .filter-btn:hover { border-color: rgba(99,102,241,0.5) !important; color: #c7d2fe !important; }
 
-        .signout-btn { transition: all 0.2s ease; }
-        .signout-btn:hover { border-color: #ef4444 !important; color: #ef4444 !important; background: rgba(239,68,68,0.08) !important; }
-
         .checkbox { transition: all 0.2s ease; cursor: pointer; }
         .checkbox:hover { transform: scale(1.15); }
       `}</style>
@@ -719,51 +703,8 @@ export default function DSATracker() {
               </h1>
             </div>
 
-            {/* Right side: user + stats */}
+            {/* Right side: stats */}
             <div style={{ display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
-
-              {/* User card */}
-              {user && (
-                <div style={{
-                  display:"flex", alignItems:"center", gap:12,
-                  padding:"10px 16px",
-                  background:"rgba(255,255,255,0.04)",
-                  backdropFilter:"blur(20px)",
-                  border:"1px solid rgba(255,255,255,0.08)",
-                  borderRadius:14,
-                }}>
-                  {user.user_metadata?.avatar_url ? (
-                    <img src={user.user_metadata.avatar_url} alt="avatar"
-                      referrerPolicy="no-referrer"
-                      style={{ width:34, height:34, borderRadius:"50%", border:"2px solid rgba(99,102,241,0.5)" }}
-                    />
-                  ) : (
-                    <div style={{
-                      width:34, height:34, borderRadius:"50%",
-                      background:"linear-gradient(135deg,#6366f1,#a855f7)",
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      color:"#fff", fontSize:13, fontWeight:700,
-                    }}>
-                      {(user.user_metadata?.full_name || user.email || "?")[0].toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <div style={{ fontSize:13, color:"#e2e8f0", fontWeight:500 }}>
-                      {user.user_metadata?.full_name || user.email?.split('@')[0]}
-                    </div>
-                    <div style={{ fontSize:10, color:"#475569" }}>{user.email}</div>
-                  </div>
-                  <button onClick={signOut} className="signout-btn" style={{
-                    padding:"6px 12px", borderRadius:8,
-                    border:"1px solid rgba(255,255,255,0.08)",
-                    background:"transparent", color:"#475569",
-                    cursor:"pointer", fontSize:11, fontFamily:"inherit",
-                    marginLeft:4,
-                  }}>
-                    Sign out
-                  </button>
-                </div>
-              )}
 
               {/* Solved counter */}
               <div style={{
